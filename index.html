@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Web Pro - Marketing Edition</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg-body: #dadbd3;
+            --bg-side: #ffffff;
+            --bg-header: #ededed;
+            --bg-chat: #efeae2;
+            --bg-input: #ffffff;
+            --text-main: #111b21;
+            --text-secondary: #667781;
+            --bubble-in: #ffffff;
+            --bubble-out: #dcf8c6;
+            --border-color: rgba(0,0,0,0.1);
+            --accent-green: #00a884;
+            --danger: #ea0038;
+            --dropdown-bg: #ffffff;
+            --reply-bg: rgba(0,0,0,0.05);
+            --modal-overlay: rgba(11, 20, 26, 0.8);
+            --icon-color: #54656f;
+        }
+
+        body.dark {
+            --bg-body: #0b141a;
+            --bg-side: #111b21;
+            --bg-header: #202c33;
+            --bg-chat: #0b141a;
+            --bg-input: #2a3942;
+            --text-main: #e9edef;
+            --text-secondary: #8696a0;
+            --bubble-in: #202c33;
+            --bubble-out: #005c4b;
+            --border-color: rgba(255,255,255,0.1);
+            --dropdown-bg: #233138;
+            --reply-bg: rgba(255,255,255,0.1);
+            --icon-color: #8696a0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body {
+            background: linear-gradient(to bottom, var(--accent-green) 0%, var(--accent-green) 130px, var(--bg-body) 130px, var(--bg-body) 100%);
+            height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; transition: background 0.3s;
+        }
+
+        /* Generic Utilities */
+        .hidden { display: none !important; }
+        .flex { display: flex; }
+        .btn { border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 14px; }
+        .btn-primary { background: var(--accent-green); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-secondary { background: transparent; color: var(--accent-green); border: 1px solid var(--accent-green); }
+        
+        #app-container { width: 100%; height: 100%; max-width: 1600px; display: flex; background: var(--bg-side); box-shadow: 0 6px 18px rgba(0,0,0,0.1); position: relative; }
+
+        /* Sidebar */
+        #sidebar { width: 30%; min-width: 350px; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: var(--bg-side); position: relative; }
+        .sidebar-header { height: 60px; background: var(--bg-header); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+        .header-actions { display: flex; gap: 20px; color: var(--text-secondary); font-size: 18px; position: relative; align-items: center; }
+        .header-actions i { cursor: pointer; transition: 0.2s; }
+        .header-actions i:hover { color: var(--accent-green); }
+
+        #chat-list { flex: 1; overflow-y: auto; }
+        .chat-item { display: flex; padding: 12px 16px; align-items: center; gap: 15px; cursor: pointer; border-bottom: 1px solid var(--border-color); transition: 0.2s; }
+        .chat-item:hover { background: var(--bg-header); }
+        .chat-item.active { background: var(--bg-header); }
+        .chat-info { flex: 1; overflow: hidden; }
+        .chat-name { font-weight: 500; color: var(--text-main); font-size: 16px; }
+        .small-avatar { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; }
+
+        /* Main Chat */
+        #main-chat { flex: 1; display: flex; flex-direction: column; background: var(--bg-chat); position: relative; overflow: hidden; }
+        
+        .chat-header { 
+            height: 60px; background: var(--bg-header); padding: 10px 16px; 
+            display: flex; align-items: center; justify-content: space-between; 
+            border-left: 1px solid var(--border-color); z-index: 500; 
+        }
+
+        .contact-details { display: flex; align-items: center; gap: 15px; cursor: pointer; flex: 1; height: 100%; }
+        .contact-text-wrapper { display: flex; flex-direction: column; justify-content: center; line-height: 1.2; }
+        .contact-name { font-weight: 500; color: var(--text-main); font-size: 16px; }
+        .contact-status { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+
+        #messages-container {
+            flex: 1; padding: 20px 7%; overflow-y: auto; background-color: var(--bg-chat);
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-repeat: repeat; background-blend-mode: multiply; display: flex; flex-direction: column;
+        }
+        body.dark #messages-container { background-blend-mode: soft-light; }
+
+        /* Messages */
+        .message-bubble { max-width: 65%; padding: 6px 10px 8px 10px; border-radius: 8px; margin-bottom: 10px; position: relative; font-size: 14.2px; line-height: 1.5; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); display: flex; flex-direction: column; transition: 0.2s; }
+        .message-in { align-self: flex-start; background: var(--bubble-in); color: var(--text-main); border-top-left-radius: 0; }
+        .message-out { align-self: flex-end; background: var(--bubble-out); color: var(--text-main); border-top-right-radius: 0; }
+        
+        /* Bulk Panel */
+        #bulk-panel {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-side); z-index: 2000; display: none; flex-direction: column;
+        }
+        #bulk-panel.open { display: flex; }
+        .bulk-header { background: var(--accent-green); height: 100px; color: white; display: flex; align-items: flex-end; padding: 20px; gap: 30px; }
+        .bulk-content { padding: 30px 20px; flex: 1; overflow-y: auto; }
+        .bulk-group { margin-bottom: 20px; }
+        .bulk-label { color: var(--accent-green); font-size: 14px; margin-bottom: 8px; display: block; font-weight: 500; }
+        .bulk-textarea { width: 100%; border: none; border-bottom: 2px solid var(--border-color); background: transparent; color: var(--text-main); outline: none; padding: 5px 0; font-size: 16px; resize: none; transition: 0.3s; }
+        .bulk-textarea:focus { border-bottom-color: var(--accent-green); }
+        .bulk-send-btn { width: 50px; height: 50px; background: var(--accent-green); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; border: none; cursor: pointer; float: right; margin-top: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        
+        /* Custom File Input */
+        .file-upload-wrapper { display: flex; gap: 10px; margin-top: 10px; align-items: center; }
+        .custom-file-upload { 
+            border: 1px dashed var(--text-secondary); padding: 10px; border-radius: 4px; cursor: pointer; 
+            color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 8px;
+            background: rgba(0,0,0,0.02); transition: 0.2s;
+        }
+        body.dark .custom-file-upload { background: rgba(255,255,255,0.05); border-color: var(--text-secondary); color: var(--text-main); }
+        .custom-file-upload:hover { border-color: var(--accent-green); color: var(--accent-green); }
+
+        /* Media Preview Grid - Small Thumbnails */
+        .media-preview-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+        .media-preview-item { position: relative; width: 60px; height: 60px; }
+        .media-thumb { width: 100%; height: 100%; border-radius: 6px; object-fit: cover; border: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .media-thumb-video { width: 100%; height: 100%; border-radius: 6px; background: #000; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        /* Footer */
+        .chat-footer { min-height: 62px; background: var(--bg-header); padding: 5px 16px; display: flex; align-items: center; gap: 15px; position: relative; z-index: 500; }
+        .input-wrap { flex: 1; background: var(--bg-input); border-radius: 8px; padding: 0 10px; }
+        .input-wrap input { width: 100%; border: none; background: transparent; padding: 10px 5px; outline: none; color: var(--text-main); font-size: 15px; }
+        .footer-actions { color: var(--icon-color); font-size: 24px; cursor: pointer; padding: 5px; transition: color 0.2s; }
+        .footer-actions:hover { color: var(--text-main); }
+
+        /* QR Overlay */
+        #qr-overlay { 
+            position: fixed; inset: 0; background: var(--bg-side); z-index: 9999; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        }
+        .loader {
+            border: 4px solid #f3f3f3; border-top: 4px solid var(--accent-green);
+            border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Modal */
+        #app-modal { position: fixed; inset: 0; background: var(--modal-overlay); display: none; align-items: center; justify-content: center; z-index: 6000; }
+        .modal-content { background: var(--bg-side); padding: 25px; border-radius: 8px; width: 400px; color: var(--text-main); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .modal-header { font-size: 18px; font-weight: 600; margin-bottom: 15px; }
+        .modal-body { font-size: 15px; color: var(--text-secondary); margin-bottom: 25px; line-height: 1.5; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; }
+    </style>
+</head>
+<body class="light">
+
+    <!-- QR / Loading Overlay -->
+    <div id="qr-overlay">
+        <h2 style="color: var(--text-main); margin-bottom: 20px;">Pro Messenger</h2>
+        <div id="qr-loader" class="loader"></div>
+        <img id="qr-image" src="" style="width: 264px; height: 264px; display: none; border: 1px solid var(--border-color); padding: 10px; border-radius: 8px; background: white;">
+        <p style="margin-top: 20px; color: var(--text-secondary);" id="status-text">Connecting to server...</p>
+    </div>
+
+    <!-- Modal -->
+    <div id="app-modal">
+        <div class="modal-content">
+            <div class="modal-header" id="modal-title">Alert</div>
+            <div class="modal-body" id="modal-message">Message goes here.</div>
+            <div class="modal-footer" id="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container">
+        <!-- Sidebar -->
+        <aside id="sidebar">
+            <div id="bulk-panel">
+                <div class="bulk-header">
+                    <i class="fa-solid fa-arrow-left" onclick="toggleBulk()" style="cursor:pointer;"></i>
+                    <span style="font-size: 19px; font-weight: 500;">Bulk Marketing</span>
+                </div>
+                <div class="bulk-content">
+                    <div class="bulk-group">
+                        <label class="bulk-label">Import Numbers (Excel/CSV)</label>
+                        <div class="file-upload-wrapper">
+                            <label for="excel-upload" class="custom-file-upload">
+                                <i class="fa-solid fa-file-excel"></i> Upload Excel File
+                            </label>
+                            <input type="file" id="excel-upload" accept=".xlsx, .xls, .csv" style="display:none" onchange="handleExcelUpload(this)">
+                            <span id="excel-status" style="font-size:12px; color:var(--text-secondary);"></span>
+                        </div>
+                    </div>
+
+                    <div class="bulk-group">
+                        <label class="bulk-label">Numbers (comma separated)</label>
+                        <textarea class="bulk-textarea" id="bulk-nums" rows="3" placeholder="88017XXX, 88018XXX"></textarea>
+                    </div>
+
+                    <div class="bulk-group">
+                        <label class="bulk-label">Multimedia Attachment (Images/Videos)</label>
+                        <div class="file-upload-wrapper">
+                            <label for="bulk-media-upload" class="custom-file-upload">
+                                <i class="fa-solid fa-paperclip"></i> Select Media
+                            </label>
+                            <input type="file" id="bulk-media-upload" multiple accept="image/*,video/*" style="display:none" onchange="handleBulkMedia(this)">
+                            <span id="bulk-media-status" style="font-size:12px; color:var(--text-secondary);"></span>
+                        </div>
+                        <div id="media-preview-container" class="media-preview-grid"></div>
+                    </div>
+
+                    <div class="bulk-group">
+                        <label class="bulk-label">Message</label>
+                        <textarea class="bulk-textarea" id="bulk-msg" rows="4" placeholder="Type your marketing message..."></textarea>
+                    </div>
+                    <button class="bulk-send-btn" onclick="sendBulk()"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+
+            <header class="sidebar-header">
+                <div style="font-weight: bold; font-size: 18px; color: var(--text-main);">Pro Messenger</div>
+                <div class="header-actions">
+                    <i class="fa-solid fa-bullhorn" title="Bulk Message" onclick="toggleBulk()"></i>
+                    <i class="fa-solid fa-moon" id="theme-toggle" onclick="toggleTheme()" title="Toggle Theme"></i>
+                    <i class="fa-solid fa-right-from-bracket" style="color: var(--danger);" onclick="showConfirm('Logout', 'Are you sure you want to logout?', () => logout())" title="Logout"></i>
+                </div>
+            </header>
+            <div id="chat-list"></div>
+        </aside>
+
+        <!-- Main Chat -->
+        <main id="main-chat">
+            <header class="chat-header">
+                <div class="contact-details">
+                    <img src="https://i.pravatar.cc/150?u=1" class="small-avatar" id="active-avatar" style="display: none;">
+                    <div class="contact-text-wrapper">
+                        <div class="contact-name" id="active-name">Select a chat</div>
+                        <div class="contact-status" id="active-status"></div>
+                    </div>
+                </div>
+            </header>
+
+            <div id="messages-container"></div>
+
+            <footer class="chat-footer">
+                <div class="input-wrap">
+                    <input type="text" id="chat-input" placeholder="Type a message" autocomplete="off">
+                </div>
+                <div class="footer-actions" onclick="sendMessage()"><i class="fa-solid fa-paper-plane" style="color: var(--accent-green);"></i></div>
+            </footer>
+        </main>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Render-url
+        const socket = io("https://whatsapp-vd6w.onrender.com");
+        let allChats = {};
+        let currentChatId = null;
+        let bulkEncodedFiles = [];
+
+        const qrOverlay = document.getElementById('qr-overlay');
+        const qrLoader = document.getElementById('qr-loader');
+        const qrImage = document.getElementById('qr-image');
+        const statusText = document.getElementById('status-text');
+
+        socket.on('connect', () => { console.log("Connected to server"); });
+
+        socket.on('qr_code', (url) => {
+            qrLoader.style.display = 'none';
+            qrImage.style.display = 'block';
+            qrImage.src = url;
+            statusText.innerText = "Scan using WhatsApp Linked Devices";
+        });
+
+        socket.on('connection_open', () => { qrOverlay.style.display = 'none'; });
+
+        socket.on('update_chat_list', (data) => {
+            allChats = data;
+            renderChatList();
+            if(currentChatId && allChats[currentChatId]) renderMessages(currentChatId);
+        });
+
+        socket.on('bulk_complete', (data) => { showAlert('Success', `Sent to ${data.count} contacts.`); });
+
+        function renderChatList() {
+            const list = document.getElementById('chat-list');
+            list.innerHTML = '';
+            const sorted = Object.values(allChats).sort((a,b) => {
+                const ta = a.messages[a.messages.length-1]?.rawTime || 0;
+                const tb = b.messages[b.messages.length-1]?.rawTime || 0;
+                return tb - ta;
+            });
+
+            sorted.forEach(chat => {
+                const lastMsg = chat.messages[chat.messages.length-1];
+                const div = document.createElement('div');
+                div.className = `chat-item ${currentChatId === chat.id ? 'active' : ''}`;
+                div.onclick = () => loadChat(chat.id);
+                div.innerHTML = `
+                    <img src="${chat.avatar}" class="small-avatar">
+                    <div class="chat-info">
+                        <div style="font-weight:500; color:var(--text-main); display:flex; justify-content:space-between;">
+                            <span>${chat.name}</span>
+                            <span style="font-size:12px; color:var(--text-secondary); font-weight:400;">${lastMsg?.time || ''}</span>
+                        </div>
+                        <div style="font-size:13px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            ${lastMsg ? (lastMsg.fromMe ? '<i class="fa-solid fa-check"></i> ' : '') + lastMsg.text : ''}
+                        </div>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function loadChat(id) {
+            currentChatId = id;
+            const chat = allChats[id];
+            document.getElementById('active-name').innerText = chat.name;
+            document.getElementById('active-avatar').src = chat.avatar;
+            document.getElementById('active-avatar').style.display = 'block';
+            document.getElementById('active-status').innerText = 'online';
+            renderMessages(id);
+            renderChatList();
+        }
+
+        function renderMessages(id) {
+            const container = document.getElementById('messages-container');
+            container.innerHTML = '';
+            const msgs = allChats[id].messages;
+            msgs.forEach(m => {
+                const div = document.createElement('div');
+                div.className = `message-bubble ${m.fromMe ? 'message-out' : 'message-in'}`;
+                div.innerHTML = `
+                    <div class="msg-content">${m.text}</div>
+                    <div style="font-size:11px; color:var(--text-secondary); text-align:right; margin-top:2px;">${m.time}</div>
+                `;
+                container.appendChild(div);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const val = input.value.trim();
+            if(val && currentChatId) {
+                socket.emit('send_message', { to: currentChatId, text: val });
+                input.value = '';
+            }
+        }
+
+        function toggleBulk() {
+            document.getElementById('bulk-panel').classList.toggle('open');
+        }
+
+        function handleExcelUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+                let extractedNumbers = [];
+                jsonData.forEach(row => { if(row[0]) extractedNumbers.push(row[0]); });
+                document.getElementById('bulk-nums').value = extractedNumbers.join(', ');
+                document.getElementById('excel-status').innerText = `Loaded ${extractedNumbers.length} numbers.`;
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function handleBulkMedia(input) {
+            const files = Array.from(input.files);
+            const container = document.getElementById('media-preview-container');
+            const status = document.getElementById('bulk-media-status');
+            container.innerHTML = '';
+            bulkEncodedFiles = [];
+
+            if (files.length > 0) {
+                status.innerText = `${files.length} file(s) selected`;
+                files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const base64 = e.target.result;
+                        bulkEncodedFiles.push({ name: file.name, type: file.type, data: base64 });
+                        
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'media-preview-item';
+                        if (file.type.startsWith('image/')) {
+                            const img = document.createElement('img');
+                            img.src = base64;
+                            img.className = 'media-thumb';
+                            wrapper.appendChild(img);
+                        } else if (file.type.startsWith('video/')) {
+                            const vid = document.createElement('div');
+                            vid.className = 'media-thumb-video';
+                            vid.innerHTML = '<i class="fa-solid fa-play"></i>';
+                            wrapper.appendChild(vid);
+                        }
+                        container.appendChild(wrapper);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            } else {
+                status.innerText = '';
+            }
+        }
+
+        function sendBulk() {
+            const numsStr = document.getElementById('bulk-nums').value;
+            const msg = document.getElementById('bulk-msg').value;
+            
+            if(!numsStr || (!msg && bulkEncodedFiles.length === 0)) {
+                showAlert('Error', 'Please provide phone numbers and either a message or media.');
+                return;
+            }
+
+            const numbers = numsStr.split(',').map(n => n.trim()).filter(n => n);
+            
+            showConfirm('Start Campaign', `Sending to ${numbers.length} numbers?`, () => {
+                socket.emit('send_bulk', { numbers, message: msg, media: bulkEncodedFiles });
+                toggleBulk();
+                showAlert('Processing', 'Campaign started in background.');
+                document.getElementById('bulk-nums').value = '';
+                document.getElementById('bulk-msg').value = '';
+                document.getElementById('bulk-media-status').innerText = '';
+                document.getElementById('media-preview-container').innerHTML = '';
+                bulkEncodedFiles = [];
+            });
+        }
+
+        function closeModal() { document.getElementById('app-modal').style.display = 'none'; }
+        function showAlert(title, message) {
+            const modal = document.getElementById('app-modal');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('modal-actions').innerHTML = `<button class="btn btn-primary" onclick="closeModal()">OK</button>`;
+            modal.style.display = 'flex';
+        }
+        function showConfirm(title, message, onConfirm) {
+            const modal = document.getElementById('app-modal');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            const footer = document.getElementById('modal-actions');
+            footer.innerHTML = '';
+            const btnCancel = document.createElement('button');
+            btnCancel.className = 'btn btn-secondary';
+            btnCancel.innerText = 'Cancel';
+            btnCancel.onclick = closeModal;
+            const btnConfirm = document.createElement('button');
+            btnConfirm.className = 'btn btn-primary';
+            btnConfirm.innerText = 'Confirm';
+            btnConfirm.onclick = () => { onConfirm(); closeModal(); };
+            footer.appendChild(btnCancel);
+            footer.appendChild(btnConfirm);
+            modal.style.display = 'flex';
+        }
+        function toggleTheme() {
+            document.body.classList.toggle('dark');
+            document.getElementById('theme-toggle').className = document.body.classList.contains('dark') ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+        }
+        function logout() {
+            socket.emit('logout');
+            location.reload();
+        }
+        document.getElementById('chat-input').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
